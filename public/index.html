@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Real-Time Avatar</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0f1220;color:#eee;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px}
+svg{width:min(80vw,380px);height:auto}
+#cmd{width:min(90vw,520px);display:flex;gap:8px}
+input{flex:1;padding:10px;border-radius:8px;border:0;font-size:16px}
+button{padding:8px 12px;border-radius:8px;border:0;background:#4b5dff;color:#fff;cursor:pointer}
+#emos{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+#status{opacity:.7;font-size:14px}
+</style></head><body>
+<svg viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="85" fill="#ffd9a8"/>
+  <g id="brows" stroke="#5a3a1a" stroke-width="5" stroke-linecap="round" fill="none">
+    <path id="bl" d="M55 68 L85 68"/><path id="br" d="M115 68 L145 68"/></g>
+  <g id="eyes" fill="#222"><ellipse id="el" cx="70" cy="90" rx="9" ry="11"/><ellipse id="er" cx="130" cy="90" rx="9" ry="11"/></g>
+  <path id="cheek" d="" fill="none"/>
+  <ellipse id="mouth" cx="100" cy="140" rx="20" ry="4" fill="#7a1f2b"/>
+  <path id="smile" d="" stroke="#7a1f2b" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>
+<div id="emos"></div>
+<form id="cmd"><input id="in" placeholder="e.g. happy Hello there!  (emotion + text)" autofocus><button>Speak</button></form>
+<div id="status">Type a command: "&lt;emotion&gt; &lt;text&gt;" (happy, sad, angry, surprised, fear, neutral)</div>
+<script>
+const FACES={
+ neutral:{bl:'M55 68 L85 68',br:'M115 68 L145 68',ry:11,smile:'M80 142 Q100 146 120 142'},
+ happy:{bl:'M55 64 Q70 58 85 66',br:'M115 66 Q130 58 145 64',ry:8,smile:'M72 135 Q100 168 128 135'},
+ sad:{bl:'M55 74 L85 62',br:'M115 62 L145 74',ry:10,smile:'M76 152 Q100 134 124 152'},
+ angry:{bl:'M55 60 L85 72',br:'M115 72 L145 60',ry:7,smile:'M78 150 Q100 140 122 150'},
+ surprised:{bl:'M55 58 Q70 50 85 58',br:'M115 58 Q130 50 145 58',ry:15,smile:''},
+ fear:{bl:'M55 70 L85 58',br:'M115 58 L145 70',ry:14,smile:'M78 150 Q100 140 122 150'}
+};
+const $=id=>document.getElementById(id);
+let cur='neutral';
+function setEmotion(e){
+ const f=FACES[e]||FACES.neutral;cur=e;
+ $('bl').setAttribute('d',f.bl);$('br').setAttribute('d',f.br);
+ $('el').setAttribute('ry',f.ry);$('er').setAttribute('ry',f.ry);
+ $('smile').setAttribute('d',f.smile);
+ $('mouth').style.display=speaking||e==='surprised'?'':'none';
+}
+let speaking=false,an;
+Object.keys(FACES).forEach(e=>{const b=document.createElement('button');b.textContent=e;b.onclick=()=>setEmotion(e);$('emos').append(b)});
+setEmotion('neutral');
+$('mouth').style.display='';
+function animate(){
+ const d=new Uint8Array(an.fftSize);an.getByteTimeDomainData(d);
+ let s=0;for(const v of d)s+=Math.abs(v-128);const lvl=Math.min(1,s/d.length/18);
+ $('mouth').setAttribute('ry',4+lvl*26);$('mouth').setAttribute('rx',20+lvl*6);
+ if(speaking)requestAnimationFrame(animate);
+}
+const ctx=new (window.AudioContext||window.webkitAudioContext)();
+$('cmd').onsubmit=async ev=>{
+ ev.preventDefault();
+ let t=$('in').value.trim();if(!t)return;
+ const m=t.split(/\s+/)[0].toLowerCase();let emotion='neutral';
+ if(FACES[m]){emotion=m;t=t.slice(m.length).trim()||'Hello';}
+ setEmotion(emotion); // face changes instantly, before audio arrives
+ $('status').textContent='Generating voice…';
+ const r=await fetch('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emotion,text:t})});
+ if(!r.ok){$('status').textContent='Error: '+(await r.text());return;}
+ await ctx.resume();
+ const buf=await ctx.decodeAudioData(await r.arrayBuffer());
+ const src=ctx.createBufferSource();src.buffer=buf;an=ctx.createAnalyser();an.fftSize=1024;
+ src.connect(an);an.connect(ctx.destination);
+ speaking=true;setEmotion(emotion);animate();src.start();
+ $('status').textContent='Speaking ('+emotion+')';
+ src.onended=()=>{speaking=false;$('mouth').setAttribute('ry',4);setEmotion(emotion);$('status').textContent='Ready'};
+ $('in').value='';
+};
+</script></body></html>
