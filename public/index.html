@@ -9,7 +9,28 @@ input{flex:1;padding:10px;border-radius:8px;border:0;font-size:16px}
 button{padding:8px 12px;border-radius:8px;border:0;background:#4b5dff;color:#fff;cursor:pointer}
 #emos{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 #status{opacity:.7;font-size:14px}
+table{border-collapse:collapse;width:min(96vw,1000px);font-size:13px}
+th,td{border:1px solid #2b3050;padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#1a1f38}
+#compare{width:min(96vw,1000px);overflow-x:auto}
+#compare summary{cursor:pointer;font-size:18px;font-weight:600;margin-bottom:8px}
+#compare h3{margin:14px 0 4px}#compare li{margin:3px 0}
 </style></head><body>
+<details id="compare" open><summary>Platform comparison: RunPod vs fal.ai vs Higgsfield</summary>
+<table><tr><th>Dimension</th><th>RunPod (Self-Hosted / Custom)</th><th>fal.ai (Serverless API)</th><th>Higgsfield AI (Studio Platform)</th></tr><tr><th>Category</th><td>Raw GPU Cloud (IaaS)</td><td>Serverless Inference APIs (MaaS)</td><td>SaaS Creator Studio / Multi-Model Aggregator</td></tr><tr><th>Pricing Model</th><td>Hourly dedicated pods or per-sec serverless compute</td><td>Pay-per-generation or pay-per-second runner execution</td><td>Monthly credit subscriptions ($9 – $59+/mo) or credit packs</td></tr><tr><th>Cost at Low/Spiky Volume</th><td>Expensive if pods idle; moderate on serverless (cold start costs)</td><td><b>Very cost-efficient</b> (zero idle overhead)</td><td>Fixed monthly cost; unused credits frequently expire</td></tr><tr><th>Cost at 24/7 Heavy Scale</th><td><b>Cheapest</b> (via low-cost RTX 4090 / 5090 cluster rates)</td><td>Higher margin markup per call</td><td><b>Most expensive</b> per rendered second at scale</td></tr><tr><th>Avatar Lip-Sync Capability</th><td>Open-source (LatentSync, MuseTalk, Wav2Lip, SadTalker)</td><td>Managed LatentSync / MuseTalk endpoints or custom runners</td><td>"Lipsync Studio" / AI Human Video (consumer-facing UI)</td></tr><tr><th>Real-Time Streaming</th><td><b>Possible (&lt;200 ms)</b> via WebRTC + optimized TensorRT engines</td><td><b>Partial (Near real-time / sub-second)</b> via fast WebSocket queues</td><td><b>No real-time streaming</b> (asynchronous batch queue only)</td></tr><tr><th>Integration Method</th><td>Docker, REST/gRPC wrappers, custom microservices</td><td>REST &amp; WebSocket APIs, Python/JS SDKs</td><td>Web dashboard, limited webhook/REST API</td></tr><tr><th>Operational Maintenance</th><td>High (CUDA drivers, Docker containers, autoscaling)</td><td>Very low (fully managed serverless infrastructure)</td><td>Zero (turnkey web product)</td></tr></table>
+<h3>Real-time suitability breakdown</h3>
+<p>If by "real-time" you mean an interactive conversational avatar (live Zoom/webcam bot, voice agent via WebRTC, total latency under 500 ms):</p>
+<ol>
+<li><b>Higgsfield AI: not suitable for real-time.</b> Built for asynchronous batch creation (ads, cinematic social clips, short presenter videos). Jobs sit in a rendering queue and take tens of seconds to return a finished .mp4. No WebRTC or real-time frame streaming engine.</li>
+<li><b>fal.ai: suitable for near real-time / fast turnaround.</b> Highly optimized infrastructure with low warm-worker latency. With fast video or avatar models over WebSockets it can reach sub-second execution, but true bidirectional conversational streaming (under 250 ms) is difficult because of API round-trip latency and frame chunk packaging.</li>
+<li><b>RunPod: best option for true low-latency real-time streaming.</b> Dedicated GPU pods (e.g. RTX 4090 or L4) running lightweight models like MuseTalk or LivePortrait compiled with TensorRT, piping audio in and video out via WebRTC / LiveKit, give interactive latency of 150–250 ms.</li>
+</ol>
+<h3>Summary recommendation</h3>
+<ul>
+<li><b>Higgsfield</b> if you don't want to code and just want pre-recorded marketing clips or social avatars from a web UI.</li>
+<li><b>fal.ai</b> if you need a developer API for pre-rendered or near-instant video generation without maintaining GPU containers or CUDA drivers.</li>
+<li><b>RunPod</b> (or a dedicated WebRTC avatar engine like Simli) for an interactive conversational voice agent that needs live, sub-second lip-sync streaming.</li>
+</ul></details>
 <img id="photo" style="display:none;width:min(80vw,380px);border-radius:16px">
 <svg id="cartoon" viewBox="0 0 200 200">
   <circle cx="100" cy="100" r="85" fill="#ffd9a8"/>
