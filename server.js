@@ -4,6 +4,8 @@ const path = require('path');
 
 const PORT = process.env.PORT || 8080;
 const KEY = process.env.MIMO_API_KEY;
+const LA_KEY = process.env.LIVEAVATAR_API_KEY;
+const LA = 'https://api.liveavatar.com';
 const BASE = process.env.XIAOMI_BASE_URL || 'https://api.xiaomimimo.com/v1';
 
 const STYLES = {
@@ -54,14 +56,48 @@ async function converse(text) {
   return j;
 }
 
+async function la(pathname, opts) {
+  if (!LA_KEY) throw new Error('LIVEAVATAR_API_KEY is not set on the server');
+  const r = await fetch(LA + pathname, opts);
+  const t = await r.text();
+  if (!r.ok) throw new Error(`LiveAvatar ${r.status}: ${t.slice(0, 300)}`);
+  return JSON.parse(t);
+}
+const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
+
 http.createServer(async (req, res) => {
+  if (req.url.startsWith('/api/liveavatar/')) {
+    let body = '';
+    for await (const c of req) body += c;
+    try {
+      const route = req.url.split('?')[0];
+      if (route === '/api/liveavatar/avatars') {
+        const d = await la('/v1/avatars/public?page=1&page_size=50', { headers: { 'X-API-KEY': LA_KEY } });
+        return json(res, 200, d.data.results.map(a => ({ id: a.id, name: a.name })));
+      }
+      if (route === '/api/liveavatar/start') {
+        const { avatar_id, sandbox } = JSON.parse(body);
+        const tok = await la('/v1/sessions/token', { method: 'POST', headers: { 'X-API-KEY': LA_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'FULL', avatar_id, is_sandbox: !!sandbox }) });
+        const st = await la('/v1/sessions/start', { method: 'POST', headers: { Authorization: `Bearer ${tok.data.session_token}` } });
+        const { session_id, livekit_url, livekit_client_token } = st.data;
+        return json(res, 200, { session_id, livekit_url, livekit_client_token });
+      }
+      if (route === '/api/liveavatar/stop') {
+        const { session_id } = JSON.parse(body);
+        await la('/v1/sessions/stop', { method: 'POST', headers: { 'X-API-KEY': LA_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id, reason: 'USER_CLOSED' }) });
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 404, { error: 'unknown route' });
+    } catch (e) { return json(res, 500, { error: e.message }); }
+  }
   if (req.method === 'POST' && req.url === '/api/converse') {
     let body = '';
     for await (const c of req) body += c;
     try {
-      const { text } = JSON.parse(body);
+      const { text, textOnly } = JSON.parse(body);
       if (!text || text.length > 600) throw new Error('text required (max 600 chars)');
       const j = await converse(text);
+      if (textOnly) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(j)); }
       const wav = await tts(j.reply_emotion, j.reply);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ...j, audio: wav.toString('base64') }));

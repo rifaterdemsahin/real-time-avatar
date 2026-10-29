@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HeyGen LiveAvatar PoC</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0f1220;color:#eee;padding:16px;display:flex;justify-content:center}
+main{width:min(94vw,720px);display:flex;flex-direction:column;gap:10px}
+a{color:#8fa0ff}video{width:100%;background:#000;border-radius:12px;min-height:240px}
+select,input,button{padding:9px;border-radius:8px;border:0;font-size:15px}
+button{background:#4b5dff;color:#fff;cursor:pointer}button:disabled{opacity:.4}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:200px}
+#log{font:12px ui-monospace,monospace;background:#151a30;padding:8px;border-radius:8px;max-height:200px;overflow:auto;white-space:pre-wrap}
+</style></head><body><main>
+<p><a href="/">← Back</a> · <a href="/heygen-api.html">HeyGen API + break-even</a></p>
+<h1 style="margin:0">HeyGen LiveAvatar: proof of concept</h1>
+<div class="row">
+ <select id="av"><option>Loading avatars…</option></select>
+ <label><input type="checkbox" id="sb" checked> sandbox (free, short demo)</label>
+ <button id="start">Start session</button><button id="stop" disabled>Stop</button>
+</div>
+<video id="v" autoplay playsinline></video><audio id="a" autoplay></audio>
+<div class="row"><input id="t" placeholder="Type what the avatar should say"><button id="say" disabled>Speak</button></div>
+<div class="row"><input id="u" placeholder="Or tell it how you feel; MiMo writes an empathetic reply, the avatar speaks it"><button id="emp" disabled>Empathize</button></div>
+<div id="log"></div>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.0/dist/livekit-client.umd.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const log=m=>{$('log').textContent+=m+'\n';$('log').scrollTop=1e9};
+let room,sid;
+async function api(p,body){const r=await fetch(p,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const j=await r.json();if(j.error)throw new Error(j.error);return j}
+api('/api/liveavatar/avatars').then(l=>{$('av').innerHTML=l.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}).catch(e=>{$('av').innerHTML='<option>—</option>';log('Avatars: '+e.message)});
+function send(type,payload){
+ const msg={event_id:crypto.randomUUID(),event_type:type,session_id:sid,source_event_id:null,...payload};
+ room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(msg)),{reliable:true,topic:'agent-control'});
+ log('→ '+type+' '+JSON.stringify(payload));
+}
+$('start').onclick=async()=>{
+ $('start').disabled=true;log('Starting session…');
+ try{
+  const s=await api('/api/liveavatar/start',{avatar_id:$('av').value,sandbox:$('sb').checked});
+  sid=s.session_id;
+  room=new LivekitClient.Room();
+  room.on(LivekitClient.RoomEvent.TrackSubscribed,(track)=>{log('track: '+track.kind);track.attach(track.kind==='video'?$('v'):$('a'))});
+  room.on(LivekitClient.RoomEvent.DataReceived,(d,_p,_k,topic)=>log('← ['+topic+'] '+new TextDecoder().decode(d)));
+  room.on(LivekitClient.RoomEvent.Disconnected,()=>log('disconnected'));
+  await room.connect(s.livekit_url,s.livekit_client_token);
+  log('connected, session '+sid);
+  $('stop').disabled=$('say').disabled=$('emp').disabled=false;
+ }catch(e){log('Error: '+e.message);$('start').disabled=false}
+};
+$('stop').onclick=async()=>{try{room&&room.disconnect();await api('/api/liveavatar/stop',{session_id:sid})}catch(e){log(e.message)}
+ $('stop').disabled=$('say').disabled=$('emp').disabled=true;$('start').disabled=false;log('stopped')};
+$('say').onclick=()=>{if($('t').value.trim())send('avatar.speak_text',{text:$('t').value.trim()})};
+$('emp').onclick=async()=>{
+ const t=$('u').value.trim();if(!t)return;log('You: '+t);
+ try{const j=await api('/api/converse',{text:t,textOnly:true});log(`felt ${j.user_emotion} → reply (${j.reply_emotion}): ${j.reply}`);send('avatar.speak_text',{text:j.reply})}catch(e){log(e.message)}
+};
+</script></main></body></html>
