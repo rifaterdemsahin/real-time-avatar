@@ -1,0 +1,77 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HeyGen LiveAvatar API</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0f1220;color:#eee;line-height:1.55;padding:16px;display:flex;justify-content:center}
+main{width:min(94vw,820px)}
+a{color:#8fa0ff}h1{margin-top:0}h2{margin-top:28px}
+.a{background:#151a30;padding:2px 14px;border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid #2b3050;padding:6px 8px;text-align:left}th{background:#1a1f38}
+iframe{width:min(94vw,315px);height:560px;border:0;border-radius:12px}
+label{display:block;margin:8px 0 2px}input{padding:6px;border-radius:6px;border:0;width:130px;font-size:15px}
+#out td:last-child{font-weight:600}
+</style></head><body><main>
+<p><a href="/">← Back to the avatar</a> · <a href="/heygen.html">HeyGen LiveAvatar</a> · <a href="/realtime.html">Real-time options</a></p>
+<h1>HeyGen LiveAvatar API</h1>
+<p>Walkthrough video (YouTube Short):</p>
+<iframe src="https://www.youtube-nocookie.com/embed/Q3-raCrfJYw" title="HeyGen LiveAvatar API" allowfullscreen></iframe>
+<p><a href="https://www.youtube.com/shorts/Q3-raCrfJYw">Open on YouTube</a></p>
+
+<h2>Break-even: HeyGen LiveAvatar vs self-hosting on RunPod</h2>
+<div class="a">
+<p>For a screening tool, <b>HeyGen LiveAvatar is cheaper unless you're running hundreds of interviews a month.</b> An H100 is also the wrong GPU for self-hosting this. The figures below assume 30-minute interviews.</p>
+<p><b>HeyGen LiveAvatar.</b> On the Essential plan, FULL mode works out to 20 cents per minute and LITE mode to 10 cents per minute. FULL includes HeyGen's own speech recognition, LLM and voice. In FULL mode, LiveAvatar uses OpenAI 4o-mini, which is thin for judging candidates, so you'd probably want LITE with your own LLM.</p>
+<p>Avoid the Starter plan for this. It has up to 5 concurrent streams and a 5-minute limit per session, which would cut every interview off. Check the session limits on Essential and Business before committing.</p>
+<p><b>RunPod H100.</b> RunPod lists the H100 PCIe at $1.99 per GPU-hour and the H100 SXM at $2.69 per GPU-hour. That's about 3–4.5p per minute while it runs. The catch is that a real-time avatar has to be warm whenever a candidate turns up.</p>
+<table>
+<tr><th>Setup</th><th>100 interviews/mo (3,000 min)</th><th>500 interviews/mo (15,000 min)</th></tr>
+<tr><td>HeyGen LITE (~$0.10/min) + your LLM/voice</td><td>~$300 + LLM/TTS</td><td>~$1,500 + LLM/TTS</td></tr>
+<tr><td>HeyGen FULL (~$0.20/min)</td><td>~$600</td><td>~$3,000</td></tr>
+<tr><td>RunPod H100 always on (730 h)</td><td>~$1,450–1,960 + LLM/TTS</td><td>same, until one GPU runs out of capacity</td></tr>
+<tr><td>RunPod H100 only in scheduled slots (~50 h)</td><td>~$100–135 + LLM/TTS</td><td>~$500–675 + LLM/TTS</td></tr>
+</table>
+<p>At list prices, an always-on H100 only beats HeyGen LITE above roughly <b>15,000 minutes a month, about 480 interviews of 30 minutes each</b>.</p>
+<p><b>Why an H100 is overkill.</b> On RunPod you wouldn't run H3 Max. You'd run an open real-time model such as MuseTalk, which hit 30 fps and above on a V100. An RTX 4090 at $0.39/hour would likely be enough, which cuts the RunPod rows by about 6×. Even so, the cost you'd really be paying is engineering time:</p>
+<ul><li>Building and running WebRTC, speech-to-text, TTS and turn-taking yourself</li>
+<li>Cold starts if you scale the GPU to zero</li>
+<li>Visibly lower avatar quality than HeyGen's</li></ul>
+<p><b>Recommendation:</b> start on HeyGen LITE with your own LLM, so your scoring logic stays in your hands. Revisit RunPod plus a 4090 only if volume heads towards several hundred interviews a month. Whichever you choose, tell candidates up front that they're speaking to an AI, and keep a human reviewing decisions. In the UK, solely automated hiring decisions run into UK GDPR rules.</p>
+</div>
+
+<h2>Break-even calculator</h2>
+<div class="a">
+<p>Change the numbers to match your plan. Defaults are the list prices above. Always-on GPU cost is the hourly rate × 730 h.</p>
+<label>Interviews per month <input id="n" type="number" value="100"></label>
+<label>Minutes per interview <input id="m" type="number" value="30"></label>
+<label>HeyGen LITE $/min <input id="h" type="number" step="0.01" value="0.10"></label>
+<label>HeyGen FULL $/min <input id="hf" type="number" step="0.01" value="0.20"></label>
+<label>GPU $/hour (H100 PCIe 1.99, SXM 2.69, RTX 4090 0.39) <input id="g" type="number" step="0.01" value="1.99"></label>
+<table id="out"></table>
+<p id="be"></p>
+</div>
+
+<h2>Sources</h2>
+<ul>
+<li><a href="https://help.heygen.com/en/articles/10035615-how-to-get-started-with-liveavatar">HeyGen Help – How to get started with LiveAvatar</a></li>
+<li><a href="https://help.heygen.com/en/articles/12758516-introducing-liveavatar">HeyGen Help – Introducing LiveAvatar</a></li>
+<li><a href="https://help.heygen.com/en/articles/12758866-liveavatar-faq">HeyGen Help – LiveAvatar FAQ</a></li>
+<li><a href="https://deploybase.ai/articles/h100-on-runpod-pricing-specs-and-how-to-rent">DeployBase – H100 on RunPod pricing</a></li>
+<li><a href="https://hivenet.com/post/runpod-pricing-complete-guide-to-gpu-cloud-costs">Hivenet – RunPod pricing guide</a></li>
+<li><a href="https://sync.so/blog/what-is-musetalk">sync.so – What is MuseTalk</a></li>
+</ul>
+</main>
+<script>
+const $=id=>document.getElementById(id), usd=x=>'$'+x.toLocaleString(undefined,{maximumFractionDigits:0});
+function calc(){
+ const min=$('n').value*$('m').value, h=+$('h').value, hf=+$('hf').value, g=+$('g').value, gpu=g*730;
+ $('out').innerHTML=`<tr><th>Setup</th><th>Monthly cost</th></tr>
+ <tr><td>Minutes per month</td><td>${min.toLocaleString()}</td></tr>
+ <tr><td>HeyGen LITE</td><td>${usd(min*h)} + LLM/TTS</td></tr>
+ <tr><td>HeyGen FULL</td><td>${usd(min*hf)}</td></tr>
+ <tr><td>GPU always on (730 h)</td><td>${usd(gpu)} + LLM/TTS</td></tr>`;
+ const be=gpu/h;
+ $('be').innerHTML=`Break-even vs HeyGen LITE: <b>${Math.round(be).toLocaleString()} min/month</b> (~${Math.round(be/$('m').value).toLocaleString()} interviews). `+(min>be?'Above it, the always-on GPU is cheaper (before engineering time).':'Below it, HeyGen LITE is cheaper.');
+}
+document.querySelectorAll('input').forEach(i=>i.oninput=calc);calc();
+</script></body></html>
