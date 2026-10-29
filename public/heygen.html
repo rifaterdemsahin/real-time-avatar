@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HeyGen LiveAvatar</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0f1220;color:#eee;line-height:1.55;padding:16px;display:flex;justify-content:center}
+main{width:min(94vw,780px)}
+a{color:#8fa0ff}h1{margin-top:0}h2{margin-top:28px}
+.a{background:#151a30;padding:2px 14px;border-radius:6px}
+</style></head><body><main>
+<p><a href="/">← Back to the avatar</a> · <a href="/realtime.html">Real-time options</a></p>
+<h1>HeyGen real-time: LiveAvatar</h1>
+<p>HeyGen has a real-time product, now called <b>LiveAvatar</b>. HeyGen's docs say the old Interactive Avatar / Streaming Avatar product was sunsetting on 31 March 2026 and has moved to LiveAvatar, so ignore the older Streaming Avatar SDK tutorials you'll find.</p>
+
+<h2>How it works</h2>
+<div class="a">
+<p>LiveAvatar is a single API with two modes:</p>
+<ul>
+<li><b>FULL mode:</b> HeyGen runs everything: speech recognition, the LLM, the voice and turn-taking.</li>
+<li><b>LITE mode:</b> HeyGen only renders the avatar, and you plug in your own LLM and voice stack. It costs half the credits of FULL.</li>
+</ul>
+<p>Paid plans have no concurrency cap. HeyGen says the median time to the first frame is under 300 ms, with 99.99% API uptime. Those numbers come from HeyGen's own blog, which also ranks its product first, so test them yourself.</p>
+</div>
+
+<h2>For this project</h2>
+<div class="a">
+<ul>
+<li><b>No RunPod needed.</b> HeyGen hosts all of it, and the video streams to the browser over WebRTC.</li>
+<li><b>LITE mode</b> fits if you want the avatar driven by your own agent, such as Hermes or your Claude setup, rather than HeyGen's LLM.</li>
+<li><b>Trade-off against H3 Max:</b> a real-time avatar is built for low latency, not the cinematic quality of a diffusion clip. A common setup is a LiveAvatar for live conversation and H3 Max for pre-rendered promo or talking-head clips.</li>
+</ul>
+<p>To try it, there is a 14-day trial with 3 minutes of streaming. Check current per-minute pricing on HeyGen's site before you build around it.</p>
+</div>
+
+<h2>Sources</h2>
+<ul>
+<li><a href="https://docs.heygen.com/docs/streaming-avatar-sdk">HeyGen – Streaming Avatar SDK (sunset notice)</a></li>
+<li><a href="https://www.heygen.com/blog/best-real-time-ai-avatar-platforms">HeyGen blog – Best Interactive and Real-Time AI Avatar Platforms (2026)</a></li>
+</ul>
+</main></body></html>
