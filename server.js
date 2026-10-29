@@ -73,11 +73,13 @@ http.createServer(async (req, res) => {
       const route = req.url.split('?')[0];
       if (route === '/api/liveavatar/avatars') {
         const d = await la('/v1/avatars/public?page=1&page_size=50', { headers: { 'X-API-KEY': LA_KEY } });
-        return json(res, 200, d.data.results.map(a => ({ id: a.id, name: a.name })));
+        const L = d.data.results.map(a => ({ id: a.id, name: a.name }));
+        L.sort((a, b) => (b.name === 'Wayne') - (a.name === 'Wayne')); // Wayne is the sandbox-supported avatar
+        return json(res, 200, L);
       }
       if (route === '/api/liveavatar/start') {
         const { avatar_id, sandbox } = JSON.parse(body);
-        const tok = await la('/v1/sessions/token', { method: 'POST', headers: { 'X-API-KEY': LA_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'FULL', avatar_id, is_sandbox: !!sandbox }) });
+        const tok = await la('/v1/sessions/token', { method: 'POST', headers: { 'X-API-KEY': LA_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'FULL', avatar_id, is_sandbox: !!sandbox, avatar_persona: { language: 'en' } }) });
         const st = await la('/v1/sessions/start', { method: 'POST', headers: { Authorization: `Bearer ${tok.data.session_token}` } });
         const { session_id, livekit_url, livekit_client_token } = st.data;
         return json(res, 200, { session_id, livekit_url, livekit_client_token });
