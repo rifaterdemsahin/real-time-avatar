@@ -129,7 +129,7 @@ http.createServer(async (req, res) => {
   const file = p;
   fs.readFile(p, (err, data) => {
     if (err) { res.writeHead(404); return res.end('not found'); }
-    res.writeHead(200, { 'Content-Type': file.endsWith('.html') ? 'text/html' : file.endsWith('.jpg') ? 'image/jpeg' : 'text/plain' });
+    res.writeHead(200, { 'Content-Type': ({ '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.jpg': 'image/jpeg' })[path.extname(file)] || 'text/plain' });
     res.end(data);
   });
 }).listen(PORT, () => console.log('listening', PORT));

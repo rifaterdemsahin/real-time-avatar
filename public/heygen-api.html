@@ -12,7 +12,6 @@ iframe{width:min(94vw,315px);height:560px;border:0;border-radius:12px}
 label{display:block;margin:8px 0 2px}input{padding:6px;border-radius:6px;border:0;width:130px;font-size:15px}
 #out td:last-child{font-weight:600}
 </style></head><body><main>
-<p><a href="/">← Back to the avatar</a> · <a href="/heygen.html">HeyGen LiveAvatar</a> · <a href="/realtime.html">Real-time options</a></p>
 <h1>HeyGen LiveAvatar API</h1>
 <p>Walkthrough video (YouTube Short):</p>
 <iframe src="https://www.youtube-nocookie.com/embed/Q3-raCrfJYw" title="HeyGen LiveAvatar API" allowfullscreen></iframe>
@@ -75,4 +74,5 @@ function calc(){
  $('be').innerHTML=`Break-even vs HeyGen LITE: <b>${Math.round(be).toLocaleString()} min/month</b> (~${Math.round(be/$('m').value).toLocaleString()} interviews). `+(min>be?'Above it, the always-on GPU is cheaper (before engineering time).':'Below it, HeyGen LITE is cheaper.');
 }
 document.querySelectorAll('input').forEach(i=>i.oninput=calc);calc();
-</script></body></html>
+</script><script src="/nav.js"></script>
+</body></html>

@@ -10,7 +10,6 @@ button{background:#4b5dff;color:#fff;cursor:pointer}button:disabled{opacity:.4}
 .row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:200px}
 #log{font:12px ui-monospace,monospace;background:#151a30;padding:8px;border-radius:8px;max-height:200px;overflow:auto;white-space:pre-wrap}
 </style></head><body><main>
-<p><a href="/">← Back</a> · <a href="/heygen-api.html">HeyGen API + break-even</a></p>
 <h1 style="margin:0">HeyGen LiveAvatar: proof of concept</h1>
 <div style="background:#151a30;border-left:4px solid #4b5dff;padding:8px 12px;border-radius:6px"><b>Billing note:</b> money was first loaded on the main HeyGen platform (<a href="https://platform.heygen.com/billing">platform.heygen.com/billing</a>). LiveAvatar is a separate platform with its own balance and API key, so credit is now being loaded there too. The key for it is stored in Azure Key Vault as <code>live-avatar-key-actual-site</code>.</div>
 <p style="margin:0;opacity:.8">Sandbox mode only supports the Wayne avatar (listed first). Untick sandbox to use other avatars once credit is loaded.</p>
@@ -56,4 +55,5 @@ $('emp').onclick=async()=>{
  const t=$('u').value.trim();if(!t)return;log('You: '+t);
  try{const j=await api('/api/converse',{text:t,textOnly:true});log(`felt ${j.user_emotion} → reply (${j.reply_emotion}): ${j.reply}`);send('avatar.speak_text',{text:j.reply})}catch(e){log(e.message)}
 };
-</script></main></body></html>
+</script></main><script src="/nav.js"></script>
+</body></html>
