@@ -51,6 +51,14 @@ label{display:block;margin:8px 0 2px}input{padding:6px;border-radius:6px;border:
 <p id="be"></p>
 </div>
 
+<h2>Break-even chart</h2>
+<div class="a" style="padding:14px 10px!important">
+<p style="margin:0 8px 8px">Monthly cost against minutes of avatar time. HeyGen costs rise with usage; an always-on GPU is a flat line. Where a flat line meets a rising one is the break-even point (circles). The dashed vertical line is your volume from the calculator above, and the HeyGen rates also come from it.</p>
+<div id="chart"></div>
+<div id="legend" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:6px 8px 0;font-size:13px"></div>
+<p id="chartnote" style="margin:8px 8px 0;font-size:13px;opacity:.85"></p>
+</div>
+
 <h2>Sources</h2>
 <ul>
 <li><a href="https://help.heygen.com/en/articles/10035615-how-to-get-started-with-liveavatar">HeyGen Help – How to get started with LiveAvatar</a></li>
@@ -74,5 +82,30 @@ function calc(){
  $('be').innerHTML=`Break-even vs HeyGen LITE: <b>${Math.round(be).toLocaleString()} min/month</b> (~${Math.round(be/$('m').value).toLocaleString()} interviews). `+(min>be?'Above it, the always-on GPU is cheaper (before engineering time).':'Below it, HeyGen LITE is cheaper.');
 }
 document.querySelectorAll('input').forEach(i=>i.oninput=calc);calc();
+function chart(){
+ const per=+$('m').value, vol=$('n').value*per, h=+$('h').value, hf=+$('hf').value, HRS=730;
+ const gpus=[['RTX 4090 ($0.39/h)',0.39,'#2fbf9b'],['H100 PCIe ($1.99/h)',1.99,'#f5a524'],['H100 SXM ($2.69/h)',2.69,'#f0627a']];
+ const lines=[['HeyGen LITE',h,0,'#6c7bff'],['HeyGen FULL',hf,0,'#b46cff']].concat(gpus.map(g=>[g[0],0,g[1]*HRS,g[2]]));
+ const be=gpus.map(g=>({n:g[0],c:g[2],x:g[1]*HRS/h,y:g[1]*HRS}));
+ const xmax=Math.max(5000,Math.ceil(Math.max(vol*1.15,...be.map(b=>b.x*1.2))/5000)*5000);
+ const ymax=Math.max(...lines.map(l=>l[2]+l[1]*xmax));
+ const yTop=Math.ceil(Math.min(ymax,gpus[2][1]*HRS*1.6)/500)*500;
+ const W=760,H=420,L=64,R=16,T=14,B=48,pw=W-L-R,ph=H-T-B;
+ const X=v=>L+v/xmax*pw, Y=v=>T+ph-Math.min(v,yTop)/yTop*ph;
+ const nice=(m,n)=>{const s=m/n,p=Math.pow(10,Math.floor(Math.log10(s))),f=s/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p};
+ const xs=nice(xmax,6), ys=nice(yTop,6); let o='';
+ for(let v=0;v<=yTop;v+=ys){o+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" opacity=".12"/><text x="${L-8}" y="${Y(v)+4}" text-anchor="end" font-size="12" fill="currentColor" opacity=".7">$${v.toLocaleString()}</text>`}
+ for(let v=0;v<=xmax;v+=xs){o+=`<line x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${T+ph}" stroke="currentColor" opacity=".07"/><text x="${X(v)}" y="${T+ph+18}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".7">${v>=1000?v/1000+'k':v}</text>`}
+ o+=`<text x="${L+pw/2}" y="${H-8}" text-anchor="middle" font-size="13" fill="currentColor">Avatar minutes per month (30 min = 1 interview)</text>`;
+ o+=`<text transform="translate(14 ${T+ph/2}) rotate(-90)" text-anchor="middle" font-size="13" fill="currentColor">Cost per month (USD)</text>`;
+ lines.forEach(l=>{const y0=l[2],y1=l[2]+l[1]*xmax;o+=`<line x1="${X(0)}" y1="${Y(y0)}" x2="${X(xmax)}" y2="${Y(y1)}" stroke="${l[3]}" stroke-width="2.5" stroke-linecap="round"/>`});
+ if(vol<=xmax)o+=`<line x1="${X(vol)}" x2="${X(vol)}" y1="${T}" y2="${T+ph}" stroke="currentColor" stroke-dasharray="5 4" opacity=".6"/><text x="${X(vol)+5}" y="${T+12}" font-size="12" fill="currentColor">your volume: ${vol.toLocaleString()} min</text>`;
+ be.forEach((b,i)=>{if(b.y>yTop||b.x>xmax)return;o+=`<circle cx="${X(b.x)}" cy="${Y(b.y)}" r="6" fill="#0b0e1a" stroke="${b.c}" stroke-width="3"/><text x="${X(b.x)}" y="${Y(b.y)-12-i*0}" text-anchor="middle" font-size="12" font-weight="600" fill="${b.c}">${Math.round(b.x).toLocaleString()} min (~${Math.round(b.x/per).toLocaleString()} int.)</text>`});
+ $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Break-even chart: monthly cost versus minutes" style="color:#eceefb;display:block">${o}</svg>`;
+ $('legend').innerHTML=lines.map(l=>`<span><span style="display:inline-block;width:14px;height:4px;border-radius:2px;background:${l[3]};margin-right:6px;vertical-align:middle"></span>${l[0]}${l[2]?' always on: '+usd(l[2])+'/mo':' $'+l[1].toFixed(2)+'/min'}</span>`).join('');
+ $('chartnote').textContent='Circles: where each always-on GPU becomes cheaper than HeyGen LITE (before LLM/TTS and engineering time). Against FULL the break-even is at half the minutes.';
+}
+document.querySelectorAll('input').forEach(i=>i.addEventListener('input',chart));chart();
+
 </script><script src="/nav.js"></script>
 </body></html>
