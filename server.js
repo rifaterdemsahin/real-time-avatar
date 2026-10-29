@@ -4,7 +4,7 @@ const path = require('path');
 
 const PORT = process.env.PORT || 8080;
 const KEY = process.env.MIMO_API_KEY;
-const BASE = process.env.MIMO_BASE_URL || 'https://api.xiaomimimo.com/v1';
+const BASE = process.env.XIAOMI_BASE_URL || 'https://api.xiaomimimo.com/v1';
 
 const STYLES = {
   happy: 'Speak happily, bright and cheerful.',
@@ -33,7 +33,44 @@ async function tts(emotion, text) {
   return Buffer.from(b64, 'base64');
 }
 
+const CHAT_SYS = `You are a warm, emotionally intelligent companion in a live voice conversation. First work out what the user feels from what they said, then reply with empathy in 1-3 short spoken sentences. Reply with JSON only: {"user_emotion":"<happy|sad|angry|surprised|fear|neutral>","reply_emotion":"<same set; the expression you should show>","reply":"<spoken reply>"}`;
+const EMOS = Object.keys(STYLES);
+const history = [];
+
+async function converse(text) {
+  history.push({ role: 'user', content: text });
+  const r = await fetch(`${BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'mimo-v2.6-flash', messages: [{ role: 'system', content: CHAT_SYS }, ...history.slice(-12)] }),
+  });
+  if (!r.ok) throw new Error(`MiMo chat ${r.status}: ${await r.text()}`);
+  const raw = (await r.json()).choices?.[0]?.message?.content || '';
+  let j;
+  try { j = JSON.parse(raw.match(/\{[\s\S]*\}/)[0]); } catch { j = { user_emotion: 'neutral', reply_emotion: 'neutral', reply: raw.trim() || "I'm here, tell me more." }; }
+  if (!EMOS.includes(j.reply_emotion)) j.reply_emotion = 'neutral';
+  if (!EMOS.includes(j.user_emotion)) j.user_emotion = 'neutral';
+  history.push({ role: 'assistant', content: j.reply });
+  return j;
+}
+
 http.createServer(async (req, res) => {
+  if (req.method === 'POST' && req.url === '/api/converse') {
+    let body = '';
+    for await (const c of req) body += c;
+    try {
+      const { text } = JSON.parse(body);
+      if (!text || text.length > 600) throw new Error('text required (max 600 chars)');
+      const j = await converse(text);
+      const wav = await tts(j.reply_emotion, j.reply);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ...j, audio: wav.toString('base64') }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
   if (req.method === 'POST' && req.url === '/api/speak') {
     let body = '';
     for await (const c of req) body += c;
@@ -49,11 +86,12 @@ http.createServer(async (req, res) => {
     }
     return;
   }
-  const file = req.url === '/' ? 'index.html' : path.basename(req.url.split('?')[0]);
-  const p = path.join(__dirname, 'public', file);
+  const rel = req.url === '/' ? 'index.html' : req.url.split('?')[0].replace(/^\/+/, '');
+  const p = path.join(__dirname, 'public', path.normalize(rel).replace(/^(\.\.[\/\\])+/, ''));
+  const file = p;
   fs.readFile(p, (err, data) => {
     if (err) { res.writeHead(404); return res.end('not found'); }
-    res.writeHead(200, { 'Content-Type': file.endsWith('.html') ? 'text/html' : 'text/plain' });
+    res.writeHead(200, { 'Content-Type': file.endsWith('.html') ? 'text/html' : file.endsWith('.jpg') ? 'image/jpeg' : 'text/plain' });
     res.end(data);
   });
 }).listen(PORT, () => console.log('listening', PORT));

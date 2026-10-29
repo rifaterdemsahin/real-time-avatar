@@ -10,7 +10,8 @@ button{padding:8px 12px;border-radius:8px;border:0;background:#4b5dff;color:#fff
 #emos{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 #status{opacity:.7;font-size:14px}
 </style></head><body>
-<svg viewBox="0 0 200 200">
+<img id="photo" style="display:none;width:min(80vw,380px);border-radius:16px">
+<svg id="cartoon" viewBox="0 0 200 200">
   <circle cx="100" cy="100" r="85" fill="#ffd9a8"/>
   <g id="brows" stroke="#5a3a1a" stroke-width="5" stroke-linecap="round" fill="none">
     <path id="bl" d="M55 68 L85 68"/><path id="br" d="M115 68 L145 68"/></g>
@@ -20,6 +21,8 @@ button{padding:8px 12px;border-radius:8px;border:0;background:#4b5dff;color:#fff
   <path id="smile" d="" stroke="#7a1f2b" stroke-width="5" fill="none" stroke-linecap="round"/>
 </svg>
 <div id="emos"></div>
+<button id="mic" style="font-size:18px;padding:12px 20px">🎤 Start listening</button>
+<div id="heard" style="min-height:1.2em;opacity:.8"></div>
 <form id="cmd"><input id="in" placeholder="e.g. happy Hello there!  (emotion + text)" autofocus><button>Speak</button></form>
 <div id="status">Type a command: "&lt;emotion&gt; &lt;text&gt;" (happy, sad, angry, surprised, fear, neutral)</div>
 <script>
@@ -33,21 +36,23 @@ const FACES={
 };
 const $=id=>document.getElementById(id);
 let cur='neutral';
-function setEmotion(e){
+function setEmotion(e){showPhoto(e);
  const f=FACES[e]||FACES.neutral;cur=e;
  $('bl').setAttribute('d',f.bl);$('br').setAttribute('d',f.br);
  $('el').setAttribute('ry',f.ry);$('er').setAttribute('ry',f.ry);
  $('smile').setAttribute('d',f.smile);
  $('mouth').style.display=speaking||e==='surprised'?'':'none';
 }
-let speaking=false,an;
+let speaking=false,an,photoOK=false;
+const probe=new Image();probe.onload=()=>{photoOK=true;$('photo').style.display='';$('cartoon').style.display='none';showPhoto('neutral')};probe.src='/faces/neutral.jpg';
+function showPhoto(e,talk){if(photoOK)$('photo').src='/faces/'+(talk&&speaking?'speaking':e)+'.jpg';}
 Object.keys(FACES).forEach(e=>{const b=document.createElement('button');b.textContent=e;b.onclick=()=>setEmotion(e);$('emos').append(b)});
 setEmotion('neutral');
 $('mouth').style.display='';
 function animate(){
  const d=new Uint8Array(an.fftSize);an.getByteTimeDomainData(d);
  let s=0;for(const v of d)s+=Math.abs(v-128);const lvl=Math.min(1,s/d.length/18);
- $('mouth').setAttribute('ry',4+lvl*26);$('mouth').setAttribute('rx',20+lvl*6);
+ $('mouth').setAttribute('ry',4+lvl*26);if(photoOK)showPhoto(cur,lvl>0.12);$('mouth').setAttribute('rx',20+lvl*6);
  if(speaking)requestAnimationFrame(animate);
 }
 const ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -68,5 +73,36 @@ $('cmd').onsubmit=async ev=>{
  $('status').textContent='Speaking ('+emotion+')';
  src.onended=()=>{speaking=false;$('mouth').setAttribute('ry',4);setEmotion(emotion);$('status').textContent='Ready'};
  $('in').value='';
+};
+</script>
+<script>
+// Listen -> understand -> empathize loop
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec,listening=false,busy=false;
+async function say(text){
+ busy=true;$('heard').textContent='You: '+text;$('status').textContent='Thinking…';
+ try{
+  const r=await fetch('/api/converse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  const j=await r.json();if(j.error)throw new Error(j.error);
+  setEmotion(j.user_emotion); // mirror what the user feels first
+  await ctx.resume();
+  const bin=Uint8Array.from(atob(j.audio),c=>c.charCodeAt(0));
+  const buf=await ctx.decodeAudioData(bin.buffer);
+  const src=ctx.createBufferSource();src.buffer=buf;an=ctx.createAnalyser();an.fftSize=1024;
+  src.connect(an);an.connect(ctx.destination);
+  speaking=true;setEmotion(j.reply_emotion);animate();src.start();
+  $('status').textContent='Heard '+j.user_emotion+' → '+j.reply_emotion+': '+j.reply;
+  await new Promise(res=>src.onended=res);
+  speaking=false;$('mouth').setAttribute('ry',4);setEmotion(j.reply_emotion);
+ }catch(e){$('status').textContent='Error: '+e.message}
+ busy=false;
+}
+$('mic').onclick=()=>{
+ if(!SR){$('status').textContent='Speech recognition needs Chrome';return;}
+ if(listening){listening=false;rec.stop();$('mic').textContent='🎤 Start listening';return;}
+ rec=new SR();rec.continuous=true;rec.interimResults=false;rec.lang='en-US';
+ rec.onresult=ev=>{const t=ev.results[ev.results.length-1][0].transcript.trim();if(t&&!busy)say(t);};
+ rec.onend=()=>{if(listening)rec.start();};
+ rec.start();listening=true;$('mic').textContent='⏹ Stop listening';$('status').textContent='Listening…';
 };
 </script></body></html>
