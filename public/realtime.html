@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Real-Time Options</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0f1220;color:#eee;line-height:1.55;padding:16px;display:flex;justify-content:center}
+main{width:min(94vw,780px)}
+a{color:#8fa0ff}h1{margin-top:0}h2{margin-top:28px}
+.q{background:#1a1f38;border-left:4px solid #4b5dff;padding:8px 12px;border-radius:6px;margin:16px 0 4px}
+.a{background:#151a30;padding:2px 14px;border-radius:6px}
+</style></head><body><main>
+<p><a href="/">← Back to the avatar</a></p>
+<h1>Real-time with minimax/h3-max/lip-sync/image-to-video</h1>
+
+<div class="q"><b>Can I get real time on this API?</b></div>
+<div class="a">
+<p><b>No, not in the live-streaming sense.</b> This is a batch generation endpoint.</p>
+<ul>
+<li><b>How it runs:</b> you submit a job to fal's queue, then poll for the result or receive it on a webhook. You can submit a request, check whether it is still in progress, and fetch the result once it is done. There is no streaming or WebSocket mode for live lip-sync.</li>
+<li><b>What you get back:</b> a finished video file. You send an image and audio and get a lip-synced video, at resolutions from 480p to 2K, 5 to 15 seconds per request, billed per second of output. It costs from $0.05 per second.</li>
+<li><b>Latency:</b> fal doesn't publish a typical generation time, and the each::labs listing shows no median runtime. The video-to-video sibling returns a timing breakdown, where "inference" is the GPU denoising time summed over every window the request generated. Run a few calls at your target resolution and measure. Expect seconds to minutes per clip, not frame-by-frame speed.</li>
+</ul>
+<p>If you need a talking avatar that answers live, for example on a call or in a chat widget, you need a streaming avatar product rather than this model. A middle ground is to pre-generate short clips with H3 Max and stitch them together.</p>
+<p>Sources: fal – H3 Max Lip Sync Image to Video (API); fal – H3 Max Lip Sync overview; fal – H3 Max Lip Sync Video to Video (API).</p>
+</div>
+
+<div class="q"><b>Do I need a RunPod to run it for real time?</b></div>
+<div class="a">
+<p><b>No.</b> A RunPod GPU wouldn't make this model real-time, and you probably couldn't run this exact model there anyway.</p>
+<ul>
+<li><b>You can't get the exact model.</b> H3 Max is fal's own post-trained version of MiniMax H3. fal describes the base H3 as open-weight, but nothing on their pages suggests the H3 Max weights are released. On RunPod you would most likely run base H3, which is a different model.</li>
+<li><b>The model isn't built for live use.</b> It is a diffusion video model that generates a whole clip by repeatedly denoising it. Real-time lip-sync needs about 25–30 frames out every second, starting within a fraction of a second. On a single rented A100 or H100, a model like this takes much longer than the clip itself to render. More GPU makes each clip faster, but it doesn't turn a clip generator into a streaming one.</li>
+</ul>
+<p><b>What RunPod would give you:</b></p>
+<ul>
+<li>No fal queue wait or per-second fee, which helps at high volume.</li>
+<li>Control over cold starts. You can keep a warm pod so jobs start immediately.</li>
+<li>Your own concurrency and batching.</li>
+</ul>
+<p>It is still batch generation, just on your own hardware.</p>
+</div>
+
+<h2>Realistic options</h2>
+<div class="a">
+<ol>
+<li><b>Truly live</b> (avatar on a call or in a chat widget): use a streaming avatar API or a lightweight real-time lip-sync model built for live video. Some of these can be self-hosted on a RunPod GPU, and that is where RunPod actually earns its place.</li>
+<li><b>Near-real-time</b> (a few seconds' delay is fine): keep H3 Max on fal and generate short chunks in parallel as the audio arrives, then play them back to back.</li>
+<li><b>Pre-rendered:</b> generate clips ahead of time with H3 Max and serve them.</li>
+</ol>
+</div>
+</main></body></html>
