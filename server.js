@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 8080;
 const KEY = process.env.MIMO_API_KEY;
 const LA_KEY = process.env.LIVEAVATAR_API_KEY;
 const LA = 'https://api.liveavatar.com';
+const SANDBOX_AVATAR = 'dd73ea75-1218-4ef3-92ce-606d5f7fbc0a'; // the only avatar sandbox mode supports
 const BASE = process.env.XIAOMI_BASE_URL || 'https://api.xiaomimimo.com/v1';
 
 const STYLES = {
@@ -71,15 +72,9 @@ http.createServer(async (req, res) => {
     for await (const c of req) body += c;
     try {
       const route = req.url.split('?')[0];
-      if (route === '/api/liveavatar/avatars') {
-        const d = await la('/v1/avatars/public?page=1&page_size=50', { headers: { 'X-API-KEY': LA_KEY } });
-        const L = d.data.results.map(a => ({ id: a.id, name: a.name }));
-        L.sort((a, b) => (b.name === 'Wayne') - (a.name === 'Wayne')); // Wayne is the sandbox-supported avatar
-        return json(res, 200, L);
-      }
+      if (route === '/api/liveavatar/avatars') return json(res, 200, [{ id: SANDBOX_AVATAR, name: 'Wayne (sandbox)' }]);
       if (route === '/api/liveavatar/start') {
-        const { avatar_id, sandbox } = JSON.parse(body);
-        const tok = await la('/v1/sessions/token', { method: 'POST', headers: { 'X-API-KEY': LA_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'FULL', avatar_id, is_sandbox: !!sandbox, avatar_persona: { language: 'en' } }) });
+                const tok = await la('/v1/sessions/token', { method: 'POST', headers: { 'X-API-KEY': LA_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'FULL', avatar_id: SANDBOX_AVATAR, is_sandbox: true, avatar_persona: { language: 'en' } }) });
         const st = await la('/v1/sessions/start', { method: 'POST', headers: { Authorization: `Bearer ${tok.data.session_token}` } });
         const { session_id, livekit_url, livekit_client_token } = st.data;
         return json(res, 200, { session_id, livekit_url, livekit_client_token });

@@ -12,10 +12,9 @@ button{background:#4b5dff;color:#fff;cursor:pointer}button:disabled{opacity:.4}
 </style></head><body><main>
 <h1 style="margin:0">HeyGen LiveAvatar: proof of concept</h1>
 <div style="background:#151a30;border-left:4px solid #4b5dff;padding:8px 12px;border-radius:6px"><b>Billing note:</b> money was first loaded on the main HeyGen platform (<a href="https://platform.heygen.com/billing">platform.heygen.com/billing</a>). LiveAvatar is a separate platform with its own balance and API key, so credit is now being loaded there too. The key for it is stored in Azure Key Vault as <code>live-avatar-key-actual-site</code>.</div>
-<p style="margin:0;opacity:.8">Sandbox mode only supports the Wayne avatar (listed first). Untick sandbox to use other avatars once credit is loaded.</p>
+<p style="margin:0;opacity:.8">Sandbox mode only: the free demo supports one avatar, Wayne. Sessions are short.</p>
 <div class="row">
  <select id="av"><option>Loading avatars…</option></select>
- <label><input type="checkbox" id="sb" checked> sandbox (free, short demo)</label>
  <button id="start">Start session</button><button id="stop" disabled>Stop</button>
 </div>
 <video id="v" autoplay playsinline></video><audio id="a" autoplay></audio>
@@ -27,7 +26,7 @@ button{background:#4b5dff;color:#fff;cursor:pointer}button:disabled{opacity:.4}
 const $=id=>document.getElementById(id);
 const log=m=>{$('log').textContent+=m+'\n';$('log').scrollTop=1e9};
 let room,sid;
-async function api(p,body){const r=await fetch(p,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const j=await r.json();if(j.error)throw new Error(j.error);return j}
+async function api(p,body){const r=await fetch(p,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const t=await r.text();let j;try{j=JSON.parse(t)}catch{throw new Error('Server returned an empty/invalid response (HTTP '+r.status+'); try again')}if(j.error)throw new Error(j.error);return j}
 api('/api/liveavatar/avatars').then(l=>{$('av').innerHTML=l.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}).catch(e=>{$('av').innerHTML='<option>—</option>';log('Avatars: '+e.message)});
 function send(type,payload){
  const msg={event_id:crypto.randomUUID(),event_type:type,session_id:sid,source_event_id:null,...payload};
@@ -37,7 +36,7 @@ function send(type,payload){
 $('start').onclick=async()=>{
  $('start').disabled=true;log('Starting session…');
  try{
-  const s=await api('/api/liveavatar/start',{avatar_id:$('av').value,sandbox:$('sb').checked});
+  const s=await api('/api/liveavatar/start',{});
   sid=s.session_id;
   room=new LivekitClient.Room();
   room.on(LivekitClient.RoomEvent.TrackSubscribed,(track)=>{log('track: '+track.kind);track.attach(track.kind==='video'?$('v'):$('a'))});
